@@ -1,0 +1,18 @@
+# binaries
+/bin/
+ledger-wallet
+server
+
+# env / secrets — never commit real DATABASE_URL or tokens
+.env
+*.local
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/
+
+# go
+*.test
+*.out
+coverage.*

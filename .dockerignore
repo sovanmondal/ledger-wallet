@@ -1,0 +1,11 @@
+.git
+.gitignore
+.env
+*.local
+bin/
+web/
+docs/
+scripts/
+README.md
+*.md
+.DS_Store
