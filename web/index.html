@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LedgerWallet — Operations Console</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">◆</span>
+      <div>
+        <h1>LedgerWallet</h1>
+        <p class="tagline">Wallet &amp; P2P Transfers · Operations Console</p>
+      </div>
+    </div>
+    <div class="api-config">
+      <label for="apiBase">API base URL</label>
+      <div class="row">
+        <input id="apiBase" type="text" placeholder="https://your-app.onrender.com" />
+        <button id="saveApi" class="btn ghost">Save</button>
+        <span id="conn" class="pill pill-idle">not connected</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="grid">
+    <!-- Identity -->
+    <section class="card">
+      <h2>1 · Identity</h2>
+      <p class="muted">Register a user to mint a bearer token. The active token authorizes every action below.</p>
+      <div class="row">
+        <input id="username" type="text" placeholder="username (e.g. alice)" />
+        <button id="registerBtn" class="btn">Register / Get token</button>
+      </div>
+      <div id="activeUser" class="kv hidden">
+        <div><span>Active user</span><code id="auName">—</code></div>
+        <div><span>Token</span><code id="auToken" class="truncate">—</code></div>
+      </div>
+    </section>
+
+    <!-- Wallet -->
+    <section class="card">
+      <h2>2 · Wallet</h2>
+      <p class="muted">Get-or-create the active user's wallet (race-free), then fund it from the treasury.</p>
+      <div class="row">
+        <button id="walletBtn" class="btn" disabled>Create / Load my wallet</button>
+        <button id="refreshWalletBtn" class="btn ghost" disabled>Refresh</button>
+      </div>
+      <div id="walletBox" class="kv hidden">
+        <div><span>Wallet id</span><code id="wId" class="truncate">—</code></div>
+        <div><span>Balance</span><code id="wBal" class="amount">—</code></div>
+      </div>
+      <div class="row mt">
+        <input id="topupAmt" type="number" min="1" placeholder="amount (paise)" />
+        <button id="topupBtn" class="btn ghost" disabled>Top up</button>
+      </div>
+    </section>
+
+    <!-- Transfer -->
+    <section class="card">
+      <h2>3 · Transfer</h2>
+      <p class="muted">Move paise to another wallet. Idempotency key makes retries safe.</p>
+      <label>To wallet id</label>
+      <input id="toWallet" type="text" placeholder="destination wallet id" />
+      <div class="row mt">
+        <input id="transferAmt" type="number" min="1" placeholder="amount (paise)" />
+        <input id="idemKey" type="text" placeholder="idempotency key" />
+        <button id="genKey" class="btn ghost" title="generate">↻</button>
+      </div>
+      <button id="transferBtn" class="btn mt" disabled>Send transfer</button>
+      <pre id="transferOut" class="out hidden"></pre>
+    </section>
+
+    <!-- Status / Reverse -->
+    <section class="card">
+      <h2>4 · Status &amp; Reversal</h2>
+      <p class="muted">Look up a transfer, or refund it (its own idempotency key; double-reverse is blocked).</p>
+      <div class="row">
+        <input id="statusId" type="text" placeholder="transfer id" />
+        <button id="statusBtn" class="btn ghost" disabled>Get status</button>
+      </div>
+      <div class="row mt">
+        <input id="reverseKey" type="text" placeholder="reversal idempotency key" />
+        <button id="reverseBtn" class="btn ghost" disabled>Reverse transfer</button>
+      </div>
+      <pre id="statusOut" class="out hidden"></pre>
+    </section>
+
+    <!-- Live metrics -->
+    <section class="card wide">
+      <div class="row spread">
+        <h2>Live Operations &amp; Domain Metrics</h2>
+        <span id="metricsPulse" class="pill pill-idle">idle</span>
+      </div>
+      <p class="muted">Polled from <code>/metrics</code> every 3s. The conservation gauge should stay constant.</p>
+      <div class="metrics" id="metricsGrid"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>LedgerWallet · integer paise, double-entry ledger, exactly-once transfers</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
