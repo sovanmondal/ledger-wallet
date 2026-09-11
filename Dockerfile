@@ -4,22 +4,23 @@
 FROM golang:1.22-bookworm AS build
 WORKDIR /src
 
-# Resilient module resolution: mirrors first (a mirror serves ALL modules incl. golang.org/x),
-# then the default proxy, then direct (git). GOSUMDB=off avoids sum.golang.org (also often blocked).
-ENV GOPROXY=https://goproxy.io,https://goproxy.cn,https://proxy.golang.org,direct \
-    GOSUMDB=off \
-    GOFLAGS=-mod=mod
+# Resilient module resolution for the non-vendored path. Pipe (|) separators fall through to the
+# next source on ANY error (comma only falls through on 404/410). goproxy.cn is reliable and serves
+# all modules incl. golang.org/x; then goproxy.io; then direct (git). proxy.golang.org is omitted
+# because it is commonly blocked and would stall the chain on timeouts.
+ENV GOPROXY="https://goproxy.cn|https://goproxy.io|direct" \
+    GOSUMDB=off
 
 COPY . .
 
-# If dependencies are vendored (run `make vendor` once on an unblocked network and commit vendor/),
-# the build is FULLY OFFLINE and needs no proxy at all. Otherwise resolve via GOPROXY/direct.
+# Preferred path: if deps are vendored (committed vendor/), build is FULLY OFFLINE — no proxy,
+# no downloads, hermetic and reproducible anywhere (Render, corporate networks, air-gapped CI).
+# Fallback path: build using the committed go.mod + go.sum (needs a reachable GOPROXY).
 RUN if [ -d vendor ]; then \
       echo ">> building from vendor/ (offline, no module downloads)"; \
       CGO_ENABLED=0 GOOS=linux go build -mod=vendor -trimpath -ldflags="-s -w" -o /out/ledger-wallet ./cmd/server; \
     else \
-      echo ">> resolving modules via GOPROXY (needs internet)"; \
-      go mod tidy && \
+      echo ">> resolving modules via GOPROXY (go.sum pinned)"; \
       CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/ledger-wallet ./cmd/server; \
     fi
 

@@ -25,15 +25,15 @@ burst:
 tidy:
 	docker run --rm -v "$(PWD)":/src -w /src \
 	  -e GOSUMDB=off \
-	  -e GOPROXY=https://goproxy.io,https://goproxy.cn,https://proxy.golang.org,direct \
+	  -e 'GOPROXY=https://goproxy.cn|https://goproxy.io|direct' \
 	  golang:1.22-bookworm go mod tidy
 
 # ONE-TIME on any open network (e.g. phone hotspot): download deps into vendor/ so that
 # every later `docker compose up --build` compiles FULLY OFFLINE (bypasses blocked proxy.golang.org).
 vendor:
 	docker run --rm -v "$(PWD)":/src -w /src \
-	  -e GOFLAGS=-mod=mod -e GOSUMDB=off \
-	  -e GOPROXY=https://proxy.golang.org,https://goproxy.io,https://goproxy.cn,direct \
+	  -e GOSUMDB=off \
+	  -e 'GOPROXY=https://goproxy.cn|https://goproxy.io|direct' \
 	  golang:1.22-bookworm sh -c 'go mod tidy && go mod vendor && echo "vendored OK — commit the vendor/ dir"'
 
 # Diagnose which Go module source is reachable from inside a build container on your network.
