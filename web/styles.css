@@ -79,6 +79,13 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1
 .truncate { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .amount { color: var(--green); font-weight: 700; font-size: 15px; }
 
+.copywrap { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.copybtn {
+  flex: none; cursor: pointer; border: 1px solid var(--border); background: #0e1430; color: var(--accent2);
+  border-radius: 6px; padding: 2px 7px; font-size: 12px; line-height: 1;
+}
+.copybtn:hover { border-color: var(--accent); }
+
 .out {
   margin-top: 14px; background: #0a0f24; border: 1px solid var(--border); border-radius: 10px;
   padding: 12px; font-family: ui-monospace, monospace; font-size: 12px; color: #cdd6f4;
@@ -95,7 +102,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1
   background: #0e1430; border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px;
 }
 .metric .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
-.metric .value { font-size: 22px; font-weight: 700; margin-top: 6px; }
+.metric .value { font-size: 20px; font-weight: 700; margin-top: 6px; overflow-wrap: anywhere; line-height: 1.25; }
 .metric.hl .value { color: var(--accent2); }
 .metric.good .value { color: var(--green); }
 .metric.warn .value { color: var(--amber); }

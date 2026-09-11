@@ -21,6 +21,16 @@ function paise(n) {
   return `₹${(v / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })} (${v} p)`;
 }
 
+// Compact rupee formatting for very large values (e.g. the conservation gauge incl. treasury).
+function moneyCompact(paiseVal) {
+  const r = Number(paiseVal) / 100;
+  if (!isFinite(r)) return '—';
+  const abs = Math.abs(r);
+  if (abs >= 1e7) return '₹' + (r / 1e7).toLocaleString('en-IN', { maximumFractionDigits: 2 }) + ' Cr';
+  if (abs >= 1e5) return '₹' + (r / 1e5).toLocaleString('en-IN', { maximumFractionDigits: 2 }) + ' L';
+  return '₹' + r.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 async function api(method, path, body, auth = true) {
   if (!state.apiBase) throw new Error('Set the API base URL first');
   const headers = { 'Content-Type': 'application/json' };
@@ -153,7 +163,7 @@ function sumMetric(text, name) {
 }
 
 const METRIC_CARDS = [
-  { name: 'wallet_total_balance_paise', label: 'Total balance (conservation)', cls: 'hl', fmt: paise },
+  { name: 'wallet_total_balance_paise', label: 'Total balance (conservation)', cls: 'hl', fmt: moneyCompact },
   { name: 'transfers_created_total', label: 'Transfers created', cls: 'good' },
   { name: 'transfers_idempotent_replays_total', label: 'Idempotent replays', cls: 'hl' },
   { name: 'transfers_declined_insufficient_funds_total', label: 'Declined (funds)', cls: 'warn' },
@@ -177,7 +187,8 @@ async function pollMetrics() {
       const div = document.createElement('div');
       div.className = 'metric ' + (m.cls || '');
       const shown = v === null ? '—' : (m.fmt ? m.fmt(v) : Math.round(v).toLocaleString());
-      div.innerHTML = `<div class="label">${m.label}</div><div class="value">${shown}</div>`;
+      const title = (m.name === 'wallet_total_balance_paise' && v !== null) ? paise(v) : '';
+      div.innerHTML = `<div class="label">${m.label}</div><div class="value" title="${title}">${shown}</div>`;
       grid.appendChild(div);
     }
     $('metricsPulse').className = 'pill pill-ok';
@@ -188,6 +199,27 @@ async function pollMetrics() {
     $('metricsPulse').textContent = 'no metrics';
   }
 }
+
+// --- copy-to-clipboard for long ids/tokens ---
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.copybtn');
+  if (!btn) return;
+  const target = document.getElementById(btn.dataset.copy);
+  const text = target ? target.textContent.trim() : '';
+  if (!text || text === '—') return;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    // fallback for non-HTTPS / older browsers
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch {}
+    ta.remove();
+  }
+  const prev = btn.textContent;
+  btn.textContent = '✓';
+  setTimeout(() => { btn.textContent = prev; }, 1200);
+});
 
 // --- init ---
 (function init() {
