@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"io/fs"
 	"log/slog"
 	"net/http"
 
@@ -14,11 +15,12 @@ type Server struct {
 	metrics       *obs.Metrics
 	logger        *slog.Logger
 	allowedOrigin string
+	ui            fs.FS // embedded static UI, served at "/"
 }
 
-// NewServer constructs a Server.
-func NewServer(st *store.Store, m *obs.Metrics, logger *slog.Logger, allowedOrigin string) *Server {
-	return &Server{store: st, metrics: m, logger: logger, allowedOrigin: allowedOrigin}
+// NewServer constructs a Server. ui may be nil (then "/" serves the JSON index).
+func NewServer(st *store.Store, m *obs.Metrics, logger *slog.Logger, allowedOrigin string, ui fs.FS) *Server {
+	return &Server{store: st, metrics: m, logger: logger, allowedOrigin: allowedOrigin, ui: ui}
 }
 
 // Handler builds the routed, middleware-wrapped HTTP handler.
@@ -35,10 +37,16 @@ func (s *Server) Handler() http.Handler {
 
 	mux.HandleFunc("GET /healthz", withRoute("GET /healthz", s.handleHealthz))
 	mux.HandleFunc("GET /readyz", withRoute("GET /readyz", s.handleReadyz))
+	mux.HandleFunc("GET /api", withRoute("GET /api", s.handleIndex))
 	mux.Handle("GET /metrics", s.metrics.Handler())
 
-	// Friendly root index at exactly "/" ({$} = exact match, so unknown paths still 404).
-	mux.HandleFunc("GET /{$}", withRoute("GET /", s.handleIndex))
+	// Serve the embedded UI at "/" (and its assets like /styles.css, /app.js). API routes above
+	// are more specific and take precedence. Falls back to the JSON index if no UI is embedded.
+	if s.ui != nil {
+		mux.Handle("GET /", http.FileServer(http.FS(s.ui)))
+	} else {
+		mux.HandleFunc("GET /{$}", withRoute("GET /", s.handleIndex))
+	}
 
 	// Middleware chain, outermost first: recover → correlation → cors → metrics → mux.
 	var h http.Handler = mux
@@ -78,6 +86,6 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 			"GET /readyz",
 			"GET /metrics",
 		},
-		"note": "This is a JSON API. The browser UI lives in web/ (deploy to Vercel).",
+		"note": "JSON API. The operations console UI is served at /",
 	})
 }

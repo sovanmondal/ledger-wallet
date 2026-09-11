@@ -191,11 +191,17 @@ async function pollMetrics() {
 
 // --- init ---
 (function init() {
+  // Default to same-origin: when the UI is served by the API host, it just works (no CORS,
+  // no manual config). When hosted elsewhere (e.g. Vercel), the user sets the API base once.
+  if (!state.apiBase) {
+    state.apiBase = window.location.origin;
+    localStorage.setItem('lw_api', state.apiBase);
+  }
   $('apiBase').value = state.apiBase;
   if (state.token) { showUser(); }
   if (state.walletId) { $('walletBox').classList.remove('hidden'); $('wId').textContent = state.walletId; }
   refreshEnabled();
-  if (state.apiBase) $('saveApi').click();
+  $('saveApi').click();
   pollMetrics();
   setInterval(pollMetrics, 3000);
 })();
