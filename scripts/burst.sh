@@ -37,7 +37,15 @@ register()   { curl -s -X POST "$BASE/auth/register" -H 'Content-Type: applicati
 mk_wallet()  { curl -s -X POST "$BASE/wallets" -H "Authorization: Bearer $1"; }
 get_wallet() { curl -s "$BASE/wallets/$2" -H "Authorization: Bearer $1"; }
 topup()      { curl -s -X POST "$BASE/wallets/$2/topup" -H "Authorization: Bearer $1" -H 'Content-Type: application/json' -d "{\"amount_paise\":$3}"; }
-balance()    { get_wallet "$1" "$2" | jnum balance_paise; }
+balance()    { # retry transient empty reads (free hosts can briefly return an empty body)
+  local b
+  for _ in 1 2 3 4; do
+    b="$(get_wallet "$1" "$2" | jnum balance_paise)"
+    [ -n "$b" ] && { printf '%s' "$b"; return; }
+    sleep 0.4
+  done
+  printf ''
+}
 
 # --- portable concurrency helpers (BSD & GNU xargs both support -P/-n from stdin) ---
 cat > "$TMP/h_wallet.sh" <<'EOF'
