@@ -77,17 +77,39 @@ function out(el, obj, ok) {
   el.style.borderColor = ok ? 'rgba(52,211,153,.5)' : 'rgba(248,113,113,.5)';
 }
 
+// --- helpers: button loading state + wallet loaders ---
+async function busy(btn, fn) {
+  if (!btn) return fn();
+  const prevText = btn.textContent, prevDisabled = btn.disabled;
+  btn.disabled = true;
+  btn.classList.add('loading');
+  btn.textContent = '⏳ …';
+  try { return await fn(); }
+  finally { btn.textContent = prevText; btn.disabled = prevDisabled; btn.classList.remove('loading'); }
+}
+
+async function loadWallet() {
+  const { ok, data } = await api('POST', '/wallets');
+  if (ok) showWallet(data); else alert('Wallet failed: ' + JSON.stringify(data));
+}
+
+async function refreshWallet() {
+  if (!state.walletId) return;
+  const { ok, data } = await api('GET', '/wallets/' + state.walletId);
+  if (ok) showWallet(data);
+}
+
 // --- wiring ---
-$('saveApi').onclick = async () => {
+$('saveApi').onclick = () => busy($('saveApi'), async () => {
   state.apiBase = $('apiBase').value.trim();
   localStorage.setItem('lw_api', state.apiBase);
   try {
     const r = await fetch(state.apiBase.replace(/\/$/, '') + '/healthz');
     setConn(r.ok, r.ok ? 'connected' : 'unreachable');
   } catch { setConn(false, 'unreachable'); }
-};
+});
 
-$('registerBtn').onclick = async () => {
+$('registerBtn').onclick = () => busy($('registerBtn'), async () => {
   const username = $('username').value.trim();
   if (!username) return;
   try {
@@ -97,29 +119,24 @@ $('registerBtn').onclick = async () => {
     localStorage.setItem('lw_token', state.token);
     localStorage.setItem('lw_user', state.username);
     showUser(); refreshEnabled();
+    await loadWallet(); // auto-load the active user's wallet so the panel is never stale
   } catch (e) { alert('Register failed: ' + e.message); }
-};
+});
 
-$('walletBtn').onclick = async () => {
-  const { ok, data } = await api('POST', '/wallets');
-  if (ok) showWallet(data); else alert('Wallet failed: ' + JSON.stringify(data));
-};
+$('walletBtn').onclick = () => busy($('walletBtn'), loadWallet);
 
-$('refreshWalletBtn').onclick = async () => {
-  const { ok, data } = await api('GET', '/wallets/' + state.walletId);
-  if (ok) showWallet(data);
-};
+$('refreshWalletBtn').onclick = () => busy($('refreshWalletBtn'), refreshWallet);
 
-$('topupBtn').onclick = async () => {
+$('topupBtn').onclick = () => busy($('topupBtn'), async () => {
   const amt = parseInt($('topupAmt').value, 10);
   if (!(amt > 0)) return alert('Enter a positive paise amount');
   const { ok, data } = await api('POST', `/wallets/${state.walletId}/topup`, { amount_paise: amt });
   if (ok) showWallet(data.wallet); else alert('Top up failed: ' + JSON.stringify(data));
-};
+});
 
 $('genKey').onclick = () => { $('idemKey').value = 'idem-' + Math.random().toString(36).slice(2) + Date.now(); };
 
-$('transferBtn').onclick = async () => {
+$('transferBtn').onclick = () => busy($('transferBtn'), async () => {
   const to = $('toWallet').value.trim();
   const amount_paise = parseInt($('transferAmt').value, 10);
   let key = $('idemKey').value.trim();
@@ -129,25 +146,25 @@ $('transferBtn').onclick = async () => {
     from: state.walletId, to, amount_paise, idempotency_key: key,
   });
   out($('transferOut'), { http: status, ...data }, ok);
-  $('refreshWalletBtn').click();
-};
+  await refreshWallet();
+});
 
-$('statusBtn').onclick = async () => {
+$('statusBtn').onclick = () => busy($('statusBtn'), async () => {
   const id = $('statusId').value.trim();
   if (!id) return;
   const { ok, status, data } = await api('GET', '/transfers/' + id);
   out($('statusOut'), { http: status, ...data }, ok);
-};
+});
 
-$('reverseBtn').onclick = async () => {
+$('reverseBtn').onclick = () => busy($('reverseBtn'), async () => {
   const id = $('statusId').value.trim();
   let key = $('reverseKey').value.trim();
   if (!id) return alert('Put the transfer id in the status field');
   if (!key) { key = 'reverse-' + Math.random().toString(36).slice(2) + Date.now(); $('reverseKey').value = key; }
   const { ok, status, data } = await api('POST', `/transfers/${id}/reverse`, { idempotency_key: key });
   out($('statusOut'), { http: status, ...data }, ok);
-  $('refreshWalletBtn').click();
-};
+  await refreshWallet();
+});
 
 // --- live metrics ---
 function sumMetric(text, name) {
