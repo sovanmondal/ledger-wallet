@@ -12,6 +12,23 @@ application memory.
 
 ---
 
+## Architecture
+
+```mermaid
+flowchart LR
+  U["Browser UI / curl"] -->|"HTTPS + Bearer token"| API
+  subgraph RENDER["Render — free web service (container)"]
+    API["Go API<br/>correlation · auth · metrics · recover<br/>UI served at /"]
+  end
+  API -->|"pgx pool · one transaction per movement"| DB[("PostgreSQL<br/>Neon — free managed")]
+  API -->|"structured JSON logs"| LOG["Better Stack<br/>live tail — public"]
+  API -->|"GET /metrics"| MET["p99 · error rate<br/>domain counters · conservation gauge"]
+  GHCR[("GHCR image")] -.->|"Render pulls & runs"| API
+```
+
+Full diagrams (including the single-transaction money-movement flow) are in
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
 ## Quickstart (local, one command)
 
 Requires Docker + Docker Compose. **No Go toolchain needed** — the binary is compiled inside the image.
