@@ -43,18 +43,18 @@ sequenceDiagram
   participant C as Client
   participant M as Middleware
   participant H as Handler
-  participant DB as PostgreSQL (Neon)
-  C->>M: POST /transfers (Bearer, from, to, amount_paise, idempotency_key)
+  participant DB as Postgres
+  C->>M: POST /transfers with Bearer and idempotency_key
   M->>M: assign correlation id, resolve token to user, start latency timer
   M->>H: authorized request
-  H->>DB: BEGIN; INSERT transfer ON CONFLICT (idempotency_key) DO NOTHING
+  H->>DB: BEGIN and INSERT transfer ON CONFLICT idempotency_key DO NOTHING
   alt key already used
-    DB-->>H: 0 rows; SELECT existing
-    H-->>C: original result (409 if body differs)
+    DB-->>H: 0 rows, SELECT existing
+    H-->>C: original result, 409 if body differs
   else new movement
-    H->>DB: SAVEPOINT; conditional debit; credit; ledger pair; status; COMMIT
+    H->>DB: SAVEPOINT, conditional debit, credit, ledger pair, COMMIT
     DB-->>H: committed
-    H-->>C: 200 transfer (completed | declined)
+    H-->>C: 200 transfer completed or declined
   end
   Note over H,DB: idempotency key and money movement commit in ONE transaction
 ```
